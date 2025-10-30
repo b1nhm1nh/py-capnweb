@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import pickle
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import TYPE_CHECKING, Any
@@ -181,13 +182,17 @@ class RpcPayload:
                 }
 
             case _:
-                # For other types, try to copy using copy module
-
+                # For other types, try faster pickle-based copy first
+                # pickle is typically 5-10x faster than copy.deepcopy for complex objects
                 try:
-                    return copy.deepcopy(obj)
-                except Exception:
-                    # If deepcopy fails, return as-is and hope it's immutable
-                    return obj
+                    return pickle.loads(pickle.dumps(obj, protocol=pickle.HIGHEST_PROTOCOL))
+                except (TypeError, pickle.PicklingError):
+                    # If pickle fails, fall back to deepcopy
+                    try:
+                        return copy.deepcopy(obj)
+                    except Exception:
+                        # If both fail, return as-is and hope it's immutable
+                        return obj
 
     def _track_references(
         self, obj: Any, parent: Any = None, key: str | int | None = None

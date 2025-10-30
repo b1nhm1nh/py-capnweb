@@ -6,7 +6,7 @@ https://github.com/cloudflare/capnweb/blob/main/protocol.md
 
 from __future__ import annotations
 
-import json
+import orjson
 from dataclasses import dataclass
 from typing import Any
 
@@ -459,7 +459,7 @@ WireMessage = WirePush | WirePull | WireResolve | WireReject | WireRelease | Wir
 
 def parse_wire_message(data: str) -> WireMessage:  # noqa: C901
     """Parse a wire message from JSON string."""
-    arr = json.loads(data)
+    arr = orjson.loads(data)
     if not isinstance(arr, list) or not arr:
         msg = "Wire message must be a non-empty array"
         raise ValueError(msg)
@@ -513,7 +513,7 @@ def parse_wire_message(data: str) -> WireMessage:  # noqa: C901
 
 def serialize_wire_message(msg: WireMessage) -> str:
     """Serialize a wire message to JSON string."""
-    return json.dumps(msg.to_json())
+    return orjson.dumps(msg.to_json()).decode()
 
 
 def parse_wire_batch(data: str) -> list[WireMessage]:

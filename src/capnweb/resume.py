@@ -7,7 +7,7 @@ or re-establish capabilities.
 
 from __future__ import annotations
 
-import json
+import orjson
 import secrets
 import time
 from dataclasses import dataclass
@@ -37,15 +37,18 @@ class ResumeToken:
         Returns:
             JSON string representation of the token
         """
+        # Convert int keys to strings for orjson compatibility
+        capabilities_str_keys = {str(k): v for k, v in self.capabilities.items()}
+
         data: dict[str, Any] = {
             "session_id": self.session_id,
-            "capabilities": self.capabilities,
+            "capabilities": capabilities_str_keys,
             "created_at": self.created_at,
             "expires_at": self.expires_at,
         }
         if self.metadata:
             data["metadata"] = self.metadata
-        return json.dumps(data)
+        return orjson.dumps(data).decode()
 
     @staticmethod
     def from_json(token_str: str) -> ResumeToken:
@@ -61,7 +64,7 @@ class ResumeToken:
             ValueError: If token format is invalid
         """
         try:
-            data = json.loads(token_str)
+            data = orjson.loads(token_str)
             # Convert string keys back to integers for capabilities dict
             capabilities = {int(k): v for k, v in data["capabilities"].items()}
             return ResumeToken(
@@ -71,7 +74,7 @@ class ResumeToken:
                 expires_at=data["expires_at"],
                 metadata=data.get("metadata"),
             )
-        except (KeyError, json.JSONDecodeError, ValueError) as e:
+        except (KeyError, ValueError, orjson.JSONDecodeError) as e:
             msg = f"Invalid resume token format: {e}"
             raise ValueError(msg) from e
 
@@ -123,7 +126,7 @@ class ResumeTokenManager:
             self.redis.setex(
                 f"session:{token.session_id}",
                 int(token.expires_at - token.created_at),
-                json.dumps({"imports": imports, "exports": exports})
+                orjson.dumps({"imports": imports, "exports": exports})
             )
             return token
 
@@ -132,7 +135,7 @@ class ResumeTokenManager:
                 return None
             data = self.redis.get(f"session:{token.session_id}")
             if data:
-                session = json.loads(data)
+                session = orjson.loads(data)
                 return (session["imports"], session["exports"], True)
             return ({}, {}, False)
     ```
